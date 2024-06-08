@@ -49,36 +49,27 @@ public:
                 *it = value;
             }
     }
-    
-    SimpleVector(size_t size, Type&& value) 
-        : simple_vector_(size), size_(size), capacity_(size)    
-    {
-        for (auto it = begin(); it != end(); ++it) {
-            *it = std::move(value);
-        }
-    }
  
     // Создаёт вектор из std::initializer_list
     SimpleVector(std::initializer_list<Type> init) 
         : simple_vector_(init.size()), size_(init.size()), capacity_(init.size())
     {
-        std::move(std::make_move_iterator(init.begin()), std::make_move_iterator(init.end()), begin());
+        std::copy(std::make_move_iterator(init.begin()), std::make_move_iterator(init.end()), begin());
     }    
     
     SimpleVector(const SimpleVector& other) {
-        SimpleVector temp(other.GetSize());
-        std::copy(other.begin(), other.end(), temp.begin());
-        temp.size_ = other.size_;
-        temp.capacity_ = other.capacity_;
-        swap(temp);
+        ArrayPtr<Type> temp(other.size_);
+        std::copy(other.begin(), other.end(), temp.Get());
+        simple_vector_.swap(temp);
+        size_ = other.size_;
+        capacity_ = other.capacity_;
+        
     }
     
     SimpleVector(SimpleVector&& other) {
-        SimpleVector temp(other.GetSize());
-        std::copy(std::make_move_iterator(other.begin()), std::make_move_iterator(other.end()), temp.begin());
-        temp.size_ = std::exchange(other.size_, 0);
-        temp.capacity_ = std::exchange(other.capacity_, 0);
-        swap(temp);
+        simple_vector_ = (std::move(other.simple_vector_));
+        size_ = std::exchange(other.size_, 0);
+        capacity_ = std::exchange(other.capacity_, 0);
     }
     
     SimpleVector(ReserveProxyObj value) {
@@ -119,14 +110,14 @@ public:
             size_ = new_size;
             return;
         } else {
-            ArrayPtr<Type> temp(new_size * 2);
+            ArrayPtr<Type> temp(new_size);
             for (auto it  = temp.Get(); it != temp.Get() + new_size; ++it) {
                 *it = Type{};
             }
-            std::move(std::make_move_iterator(begin()), std::make_move_iterator(end()), temp.Get());
+            std::copy(begin(), end(), temp.Get());
             simple_vector_.swap(temp);
             size_ = new_size;
-            capacity_ = new_size * 2;
+            capacity_ = new_size;
             return;
         }
     }
@@ -208,23 +199,23 @@ public:
     // Добавляет элемент в конец вектора
     // При нехватке места увеличивает вдвое вместимость вектора
     void PushBack(const Type& item) {
-        const auto pos = size_;
-        if (size_ == capacity_) {
-            Resize(capacity_ + 1);
-        } else {
-            ++size_;
+        if (capacity_ == 0){
+            Reserve(1);
+        }else if(size_ == capacity_){
+            Reserve(size_ * 2);
         }
-        simple_vector_[pos] = item;
+        simple_vector_[size_] = item;
+        ++size_;
     }
     
     void PushBack(Type&& item) {
-        const auto pos = size_;
-        if (size_ == capacity_) {
-            Resize(capacity_ + 1);
-        } else {
-            ++size_;
+        if (capacity_ == 0){
+            Reserve(1);
+        }else if(size_ == capacity_){
+            Reserve(size_ * 2);
         }
-        simple_vector_[pos] = std::move(item);
+        simple_vector_[size_] = std::move(item);
+        ++size_;
     }
  
     // Вставляет значение value в позицию pos.
@@ -232,30 +223,32 @@ public:
     // Если перед вставкой значения вектор был заполнен полностью,
     // вместимость вектора должна увеличиться вдвое, а для вектора вместимостью 0 стать равной 1
     Iterator Insert(ConstIterator pos, const Type& value) {
+        assert(begin() <= pos || pos < end());
         auto delta = pos - begin();
         if (size_ < capacity_) {
             std::copy_backward(begin() + delta, end(), end() + 1);
             simple_vector_[delta] = value;
-            ++size_;
         } else {
-            Resize(size_ + 1);
+            Reserve(capacity_ * 2);
             std::copy_backward(begin() + delta, end(), end() + 1);
             simple_vector_[delta] = value;
         }
+        ++size_;
         return begin() + delta;
     }
     
-    Iterator Insert(ConstIterator pos, Type&& value) {
+    Iterator Insert(ConstIterator pos, Type&& value) {        
+        assert(begin() <= pos || pos < end());
         auto delta = pos - begin();
         if (size_ < capacity_) {
             std::move_backward(std::make_move_iterator(begin() + delta), std::make_move_iterator(end()), end() + 1);
-            simple_vector_[delta] = std::move(value);            
-            ++size_;
+            simple_vector_[(size_t)delta] = std::move(value);
         } else {
-            Resize(size_ + 1);
+            Reserve(capacity_ * 2);
             std::move_backward(std::make_move_iterator(begin() + delta), std::make_move_iterator(end()), end() + 1);
-            simple_vector_[delta] = std::move(value);
+            simple_vector_[(size_t)delta] = std::move(value);
         }
+        ++size_;
         return begin() + delta;
     }
  
@@ -280,17 +273,11 @@ public:
         std::swap(capacity_, other.capacity_);
     }
     
-    void swap(SimpleVector&& other) noexcept {
-        simple_vector_.swap(other.simple_vector_);
-        std::swap(size_, other.size_);
-        std::swap(capacity_, other.capacity_);
-    }
-    
     void Reserve(size_t new_capacity) {
         if (new_capacity > capacity_) {
             auto temp_size = size_;
             SimpleVector temp (new_capacity);
-            std::copy(begin(), end(), temp.begin());
+            std::copy(std::make_move_iterator(begin()), std::make_move_iterator(end()), temp.begin());
             swap(temp);
             size_ = temp_size;
         }

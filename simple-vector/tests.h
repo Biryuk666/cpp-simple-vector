@@ -128,6 +128,10 @@ inline void Test2() {
     {
         SimpleVector<int> v(1);
         v.PushBack(42);
+        for (const auto& val : v) {
+            std::cout << val << ", "s;
+        }
+        std::cout <<  std::endl;
         assert(v.GetSize() == 2);
         assert(v.GetCapacity() >= v.GetSize());
         assert(v[0] == 0);
@@ -219,10 +223,10 @@ inline void Test2() {
     {
         SimpleVector<int> v{1, 2, 3, 4};
         v.Insert(v.begin() + 2, 42);
-        for (const auto& val : v) {
+        /*for (const auto& val : v) {
             std::cout << val << ", "s;
         }
-        std::cout << std::endl;
+        std::cout << std::endl;*/
         assert((v == SimpleVector<int>{1, 2, 42, 3, 4}));
     }
 
@@ -267,7 +271,7 @@ void TestReserveMethod() {
     assert(v.GetCapacity() == 100);
     // проверим, что элементы на месте
     for (int i = 0; i < 10; ++i) {
-        assert(v[i] == i);
+        assert(v[(size_t)i] == i);
     }
     std::cout << "Done!"s << std::endl;
 }

@@ -28,7 +28,8 @@ public:
     ArrayPtr(const ArrayPtr&) = delete;
     
     ArrayPtr(ArrayPtr&& other) {
-        swap(other);
+        ArrayPtr temp(std::exchange(other.raw_ptr_, nullptr));
+        swap(temp);        
     }
 
     ~ArrayPtr() {
@@ -39,8 +40,8 @@ public:
     ArrayPtr& operator=(const ArrayPtr&) = delete;
 
     ArrayPtr& operator=(ArrayPtr&& rhs) {
-        if (this != rhs) {
-            ArrayPtr temp(std::exchange(rhs.raw_ptr_, nullptr));            
+        if (this->raw_ptr_ != rhs.raw_ptr_) {
+            ArrayPtr temp(std::move(rhs));            
             swap(temp);
         }
         return *this;
@@ -79,12 +80,6 @@ public:
         std::swap(raw_ptr_, other.raw_ptr_);
     }
     
-    void swap(ArrayPtr&& other) noexcept {
-        std::swap(raw_ptr_, other.raw_ptr_);
-        other.raw_ptr_ = nullptr;
-        
-    }
-
 private:
     Type* raw_ptr_ = nullptr;
 };
