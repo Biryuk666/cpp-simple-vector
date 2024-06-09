@@ -223,13 +223,13 @@ public:
     // Если перед вставкой значения вектор был заполнен полностью,
     // вместимость вектора должна увеличиться вдвое, а для вектора вместимостью 0 стать равной 1
     Iterator Insert(ConstIterator pos, const Type& value) {
-        assert(begin() <= pos || pos < end());
+        assert(begin() <= pos && pos <= end());
         auto delta = pos - begin();
         if (size_ < capacity_) {
             std::copy_backward(begin() + delta, end(), end() + 1);
             simple_vector_[delta] = value;
         } else {
-            Reserve(capacity_ * 2);
+            Reserve(std::max(capacity_ * 2, (size_t)1)); // если capacity_ == 0, то зарезирвировать 1; иначе capacity_ * 2
             std::copy_backward(begin() + delta, end(), end() + 1);
             simple_vector_[delta] = value;
         }
@@ -238,13 +238,13 @@ public:
     }
     
     Iterator Insert(ConstIterator pos, Type&& value) {        
-        assert(begin() <= pos || pos < end());
+        assert(begin() <= pos && pos <= end());
         auto delta = pos - begin();
         if (size_ < capacity_) {
             std::move_backward(std::make_move_iterator(begin() + delta), std::make_move_iterator(end()), end() + 1);
             simple_vector_[(size_t)delta] = std::move(value);
         } else {
-            Reserve(capacity_ * 2);
+            Reserve(std::max(capacity_ * 2, (size_t)1));
             std::move_backward(std::make_move_iterator(begin() + delta), std::make_move_iterator(end()), end() + 1);
             simple_vector_[(size_t)delta] = std::move(value);
         }
